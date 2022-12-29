@@ -610,75 +610,25 @@ abstract contract Ownable is Context {
     }
 }
 
-abstract contract Controllable is Ownable {
-    mapping(address => bool) internal _controllers;
 
-    modifier onlyController() {
-        require(
-            _controllers[msg.sender] == true || address(this) == msg.sender,
-            "Controllable: caller is not a controller"
-        );
-        _;
-    }
-
-    function addController(address _controller)
-        external
-        onlyOwner
-    {
-        _controllers[_controller] = true;
-    }
-
-    function delController(address _controller)
-        external
-        onlyOwner
-    {
-        delete _controllers[_controller];
-    }
-
-    function disableController(address _controller)
-        external
-        onlyOwner
-    {
-        _controllers[_controller] = false;
-    }
-
-    function isController(address _address)
-        external
-        view
-        returns (bool allowed)
-    {
-        allowed = _controllers[_address];
-    }
-
-    function relinquishControl() external onlyController {
-        delete _controllers[msg.sender];
-    }
-}
-
-contract ALoveLetterToGarryKKasparov is ERC721Enumerable, Controllable {
+contract ALoveLetterToGarryKKasparov is ERC721Enumerable, Ownable {
   using Strings for uint256;
 
     string baseURI;
     string public baseExtension = "";
     uint256 public maxMintAmount = 15;
-    bool public uriAppend = false;
-    string public staticUri;
     uint256 public cap = 140;
     uint256 public nftPrice = 0.05 ether;
-    uint256 public whitelistPrice = 0 ether;
     uint256 public reserved = 15;
     uint256 public reservedMinted = 0;
-    uint256 public pauseGate = 0;
-    uint256 public whitelistPauseGate = 0;
+    uint256 public pauseGate = 1;
 
   constructor(
     string memory _name,
     string memory _symbol,
-    string memory _initBaseURI,
-    string memory _initStatic
+    string memory _initBaseURI
   ) ERC721(_name, _symbol) {
     setBaseURI(_initBaseURI);
-    setStaticUri(_initStatic);
   }
 
   // internal
@@ -687,8 +637,7 @@ contract ALoveLetterToGarryKKasparov is ERC721Enumerable, Controllable {
   }
 
   // public
-  function mint(address value, uint256 _mintAmount) public onlyController{
-  require(_mintAmount <= maxMintAmount);
+  function mint(address value, uint256 _mintAmount) internal {
     uint256 supply = totalSupply();
     for (uint256 i = 1; i <= _mintAmount; i++) {
       _safeMint(value, supply + i);
@@ -721,9 +670,6 @@ contract ALoveLetterToGarryKKasparov is ERC721Enumerable, Controllable {
       "ERC721Metadata: URI query for nonexistent token"
     );
     
-    if(uriAppend == false) {
-        return staticUri;
-    }
 
     string memory currentBaseURI = _baseURI();
     return bytes(currentBaseURI).length > 0
@@ -740,6 +686,7 @@ function buyNFT(uint256 _mintAmount) public payable {
     require(_mintAmount <= maxMintAmount);
     mint(msg.sender, _mintAmount);
 }
+
 function adminMint(address account, uint256 amount) external onlyOwner {
     require(totalSupply() + amount <= cap);
     require(reservedMinted + amount <= reserved);
@@ -748,18 +695,8 @@ function adminMint(address account, uint256 amount) external onlyOwner {
     reservedMinted = reservedMinted + amount;
 }
 
-  //only owner
-  function setDynamic() public onlyController {
-    uriAppend = true;
-  }
-  function setStatic() public onlyController {
-	uriAppend = false;
-  }
   function setmaxMintAmount(uint256 _newmaxMintAmount) public onlyOwner {
     maxMintAmount = _newmaxMintAmount;
-  }
-  function setStaticUri(string memory _staticUri) public onlyOwner {
-    staticUri = _staticUri;
   }
   function setBaseURI(string memory _newBaseURI) public onlyOwner {
     baseURI = _newBaseURI;
@@ -770,7 +707,10 @@ function adminMint(address account, uint256 amount) external onlyOwner {
  function setPrice(uint256 price) external onlyOwner {
 	nftPrice = price;
 }
- function withdraw(uint256 amount) onlyOwner public {
+function pauseContract (uint256 pause) external onlyOwner {
+    pauseGate = pause;
+}
+ function withdraw() public onlyOwner {
     payable(owner()).transfer(address(this).balance);
   }
 }
